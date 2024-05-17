@@ -44,6 +44,7 @@ TARGET_REPO = 'registry.aetherproject.org/sdcore/bess_build'
 
 imgs = {
     'focal64': {'base': 'ubuntu:focal', 'tag_suffix': ''},
+    '22.04': {'base': 'ubuntu:22.04', 'tag_suffix': ''},
 }
 
 
