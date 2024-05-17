@@ -98,7 +98,7 @@ endif
 # -MMD dependency recording (should we use -MD?).
 COREDIR := $(abspath .)
 CPU ?= native
-CXXFLAGS += -std=c++17 -g3 -ggdb3 -march=$(CPU) \
+CXXFLAGS += -std=c++17 -g3 -ggdb3 -march=$(CPU) -fPIE \
             -isystem $(COREDIR) \
             -isystem $(dir $<).. -isystem $(COREDIR)/modules \
             -D_GNU_SOURCE \
@@ -123,7 +123,7 @@ ifeq "$(shell expr $(CXXCOMPILER) = g++)" "1"
   CXXFLAGS += -fno-gnu-unique
 endif
 
-LDFLAGS += -rdynamic
+LDFLAGS += -rdynamic -pie
 ifdef BESS_LINK_DYNAMIC
   LIBS_ALL_SHARED = -Wl,-call_shared
   LIBS_DL_SHARED =
