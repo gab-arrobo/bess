@@ -23,17 +23,17 @@ jobs:
 
       - name: Setup dependencies
         run: |
-          sudo apt-get install -y ccache libbpf-dev libgflags-dev libpcap-dev libgrpc++-dev
-          sudo pip3 install -r requirements.txt
+          sudo apt-get update
+          sudo apt-get install -y ccache libbpf-dev libgflags-dev libpcap-dev libgrpc++-dev \
+            python3-coverage python3-grpcio python3-protobuf python3-scapy python3-pyroute2
           yes n | ./env/rebuild_images.py noble64
           sudo mkdir -p /mnt/huge
           sudo mount -t hugetlbfs nodev /mnt/huge
-          export CXX="ccache $VER_CXX"
           ccache -s
 
       - name: Build BESS
         run: |
-          sudo ./container_build.py bess
+          ./container_build.py bess
           sudo ./container_build.py kmod_buildtest
 
       - name: Test BESS
@@ -43,5 +43,5 @@ jobs:
           python3 bessctl/run_module_tests.py
           sudo python3 bessctl/run_module_tests.py --test_dir bessctl/module_tests/cndp
           ccache -s
-          bessctl/bessctl daemon stop
+          ./bessctl/bessctl daemon stop
           [[ ${COVERAGE:-0} == 0 ]] || { sleep 3; codecov --gcov-exec gcov-7; }
