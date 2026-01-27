@@ -50,9 +50,8 @@ RUN git clone https://github.com/CloudNativeDataPlane/cndp.git
 WORKDIR /cndp
 # Use version of CNDP tested with BESS, apply Ubuntu 24.04 compatibility workaround, build and install
 RUN git checkout d5ce4b9edc2e7ddb46a61b395deffafaf11a0500 && \
-    sed -i "s/-Werror/-Wno-error=stringop-overflow -Werror/g" config/meson.build && \
-    make && make install && \
-    make static_build=1 rebuild install
+    CFLAGS="-Wno-error=stringop-overflow" make && make install && \
+    CFLAGS="-Wno-error=stringop-overflow" make static_build=1 rebuild install
 
 # Build the prometheus-metrics app
 WORKDIR /cndp/lang/go/stats/prometheus
