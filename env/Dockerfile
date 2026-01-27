@@ -50,6 +50,8 @@ RUN git clone https://github.com/CloudNativeDataPlane/cndp.git
 WORKDIR /cndp
 # Use version of CNDP tested with BESS
 RUN git checkout d5ce4b9edc2e7ddb46a61b395deffafaf11a0500
+# Workaround for Ubuntu 24.04 glibc stricter checks - disable stringop-overflow warning as error
+RUN sed -i "s/-Werror/-Wno-error=stringop-overflow -Werror/g" config/meson.build
 # Build and install CNDP shared libraries
 RUN make && make install
 # Build and install CNDP static libraries
