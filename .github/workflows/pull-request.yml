@@ -33,7 +33,7 @@ jobs:
 
       - name: Build BESS
         run: |
-          ./container_build.py bess
+          sudo ./container_build.py bess
           sudo ./container_build.py kmod_buildtest
 
       - name: Test BESS
