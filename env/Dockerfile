@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     libnuma-dev \
     libpcap-dev \
     libmosquitto-dev \
+    libsystemd-dev \
     wget \
     llvm-dev \
     libclang-dev \
