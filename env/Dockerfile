@@ -76,6 +76,7 @@ RUN apt-get update && apt-get install -y \
     libnl-cli-3-dev \
     libnuma1 \
     libpcap0.8 \
+    libsystemd-dev \
     pkg-config && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
