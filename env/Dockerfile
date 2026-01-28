@@ -77,6 +77,7 @@ RUN apt-get update && apt-get install -y \
     libnuma1 \
     libpcap0.8 \
     libsystemd-dev \
+    libmosquitto-dev \
     pkg-config && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
