@@ -36,13 +36,6 @@ jobs:
           sudo ./container_build.py bess
           sudo ./container_build.py kmod_buildtest
 
-      - name: Setup runtime libraries
-        run: |
-          sudo ldconfig
-          if [ ! -f /usr/lib/x86_64-linux-gnu/libbpf.so.0 ]; then
-            sudo ln -s /usr/lib/x86_64-linux-gnu/libbpf.so.1 /usr/lib/x86_64-linux-gnu/libbpf.so.0
-          fi
-
       - name: Test BESS
         run: |
           (cd core && ./all_test)
