@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     libnl-cli-3-dev \
     libnuma-dev \
     libpcap-dev \
+    libmosquitto-dev \
     wget \
     llvm-dev \
     libclang-dev \
