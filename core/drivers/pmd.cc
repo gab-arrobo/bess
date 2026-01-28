@@ -671,7 +671,8 @@ Port::LinkStatus PMDPort::GetLinkStatus() {
   rte_eth_link status;
   // rte_eth_link_get() may block up to 9 seconds, so use _nowait() variant.
   if (rte_eth_link_get_nowait(dpdk_port_id_, &status) != 0) {
-    return LinkStatus{.speed = 0, .full_duplex = false, .autoneg = false, .link_up = false};
+    return LinkStatus{
+        .speed = 0, .full_duplex = false, .autoneg = false, .link_up = false};
   }
 
   return LinkStatus{.speed = status.link_speed,
