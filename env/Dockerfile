@@ -94,6 +94,9 @@ COPY --from=cndp-build /cndp/lang/go/stats/prometheus/prometheus /usr/bin/
 COPY --from=cndp-build /usr/lib/libxdp* /usr/lib/
 COPY --from=cndp-build /usr/include/xdp/ /usr/include/xdp/
 
+# Update linker cache to ensure shared libraries can be found
+RUN ldconfig
+
 # Set CNDP PKG_CONFIG_PATH
 ENV PKG_CONFIG_PATH=/usr/lib64/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig
 
