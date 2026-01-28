@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     golang \
     libelf-dev \
-    meson \
+    meson-1.5 \
     pkg-config \
     libbsd-dev \
     libjson-c-dev \
@@ -32,7 +32,8 @@ RUN apt-get update && apt-get install -y \
     lld \
     m4 \
     linux-tools-common \
-    libbpf-dev && \
+    libbpf-dev \
+    ninja-build && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
