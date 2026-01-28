@@ -63,6 +63,7 @@ static const rte_eth_conf default_eth_conf(const rte_eth_dev_info &dev_info,
       .rss_hf = (RTE_ETH_RSS_IP | RTE_ETH_RSS_UDP | RTE_ETH_RSS_TCP |
                  RTE_ETH_RSS_SCTP) &
                 dev_info.flow_type_rss_offloads,
+      .algorithm = RTE_ETH_HASH_FUNCTION_DEFAULT,
   };
 
   return ret;
@@ -76,7 +77,9 @@ void PMDPort::InitDriver() {
 
   for (dpdk_port_t i = 0; i < num_dpdk_ports; i++) {
     rte_eth_dev_info dev_info;
-    rte_eth_dev_info_get(i, &dev_info);
+    if (rte_eth_dev_info_get(i, &dev_info) != 0) {
+      continue;
+    }
 
     bess::utils::Ethernet::Address lladdr;
     rte_eth_macaddr_get(i, reinterpret_cast<rte_ether_addr *>(lladdr.bytes));
@@ -150,7 +153,9 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
   dpdk_port_t num_dpdk_ports = rte_eth_dev_count_avail();
   for (dpdk_port_t i = 0; i < num_dpdk_ports; i++) {
     rte_eth_dev_info dev_info;
-    rte_eth_dev_info_get(i, &dev_info);
+    if (rte_eth_dev_info_get(i, &dev_info) != 0) {
+      continue;
+    }
 
     if (dev_info.device) {
       bus = rte_bus_find_by_device(dev_info.device);
@@ -371,7 +376,10 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
 
   /* Use defaut rx/tx configuration as provided by PMD drivers,
    * with minor tweaks */
-  rte_eth_dev_info_get(ret_port_id, &dev_info);
+  int info_ret = rte_eth_dev_info_get(ret_port_id, &dev_info);
+  if (info_ret != 0) {
+    return CommandFailure(-info_ret, "rte_eth_dev_info_get() failed");
+  }
 
   eth_conf = default_eth_conf(dev_info, num_rxq);
   if (arg.loopback()) {
@@ -555,7 +563,11 @@ void PMDPort::DeInit() {
 
   if (hot_plugged_) {
     rte_eth_dev_info dev_info;
-    rte_eth_dev_info_get(dpdk_port_id_, &dev_info);
+    if (rte_eth_dev_info_get(dpdk_port_id_, &dev_info) != 0) {
+      LOG(WARNING) << "rte_eth_dev_info_get failed for port "
+                   << static_cast<int>(dpdk_port_id_);
+      return;
+    }
 
     char name[RTE_ETH_NAME_MAX_LEN];
     int ret;
@@ -658,7 +670,9 @@ int PMDPort::SendPackets(queue_t qid, bess::Packet **pkts, int cnt) {
 Port::LinkStatus PMDPort::GetLinkStatus() {
   rte_eth_link status;
   // rte_eth_link_get() may block up to 9 seconds, so use _nowait() variant.
-  rte_eth_link_get_nowait(dpdk_port_id_, &status);
+  if (rte_eth_link_get_nowait(dpdk_port_id_, &status) != 0) {
+    return LinkStatus{.speed = 0, .full_duplex = false, .autoneg = false, .link_up = false};
+  }
 
   return LinkStatus{.speed = status.link_speed,
                     .full_duplex = static_cast<bool>(status.link_duplex),
