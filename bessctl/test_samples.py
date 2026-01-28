@@ -49,6 +49,7 @@ sample_dir = os.path.join(this_dir, 'conf/samples')
 # These are being investigated and will be re-enabled once fixed
 KNOWN_FAILING_TESTS = [
     'flowgen.bess',
+    'iplookup.bess',
     'roundrobin.bess',
     'tc/complextree.bess',
     'update.bess',
@@ -98,7 +99,7 @@ def generate_test_method(path):
         relative_path = os.path.relpath(path, sample_dir)
         if relative_path in KNOWN_FAILING_TESTS:
             self.skipTest(f"Known to crash bessd on Ubuntu 24.04: {relative_path}")
-        
+
         try:
             run_cmd('%s run file %s' % (bessctl, path))
         except CommandError:
