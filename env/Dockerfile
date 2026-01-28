@@ -78,6 +78,8 @@ RUN apt-get update && apt-get install -y \
     libpcap0.8 \
     libsystemd-dev \
     libmosquitto-dev \
+    liblzma-dev \
+    libgrpc++-dev \
     pkg-config && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
