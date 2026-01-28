@@ -55,25 +55,22 @@ const Commands IPLookup::cmds = {
      Command::THREAD_UNSAFE}};
 
 CommandResponse IPLookup::Init(const bess::pb::IPLookupArg &arg) {
+  default_gate_ = DROP_GATE;
+
 #if RTE_VERSION < RTE_VERSION_NUM(19, 11, 0, 0)
   struct rte_lpm_config conf = {
       .max_rules = arg.max_rules() ? arg.max_rules() : 1024,
       .number_tbl8s = arg.max_tbl8s() ? arg.max_tbl8s() : 128,
       .flags = 0,
   };
+  lpm_ =
+      rte_lpm_create(name().c_str(), /* socket_id = */ rte_socket_id(), &conf);
 #else
   conf.type = RTE_FIB_DIR24_8;
   conf.default_nh = DROP_GATE;
   conf.max_routes = arg.max_rules() ? (int)arg.max_rules() : 1024;
   conf.dir24_8.nh_sz = RTE_FIB_DIR24_8_4B;
   conf.dir24_8.num_tbl8 = arg.max_tbl8s() ? arg.max_tbl8s() : 128;
-#endif
-
-  default_gate_ = DROP_GATE;
-#if RTE_VERSION < RTE_VERSION_NUM(19, 11, 0, 0)
-  lpm_ =
-      rte_lpm_create(name().c_str(), /* socket_id = */ rte_socket_id(), &conf);
-#else
   lpm_ =
       rte_fib_create(name().c_str(), /* socket_id = */ rte_socket_id(), &conf);
 #endif
