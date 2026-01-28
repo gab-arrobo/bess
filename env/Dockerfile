@@ -91,7 +91,8 @@ COPY --from=cndp-build /cndp/usr/local/lib/x86_64-linux-gnu/*.a /usr/lib/
 COPY --from=cndp-build /cndp/usr/local/include/cndp/ /usr/local/include/cndp/
 COPY --from=cndp-build /cndp/usr/local/lib/pkgconfig/libcndp.pc /usr/lib/pkgconfig/
 COPY --from=cndp-build /cndp/lang/go/stats/prometheus/prometheus /usr/bin/
-COPY --from=cndp-build /usr/lib/libxdp* /usr/lib/
+COPY --from=cndp-build /usr/lib/libxdp* /usr/local/lib/
+COPY --from=cndp-build /usr/lib/pkgconfig/libxdp.pc /usr/lib/pkgconfig/
 COPY --from=cndp-build /usr/include/xdp/ /usr/include/xdp/
 
 # Update linker cache to ensure shared libraries can be found
