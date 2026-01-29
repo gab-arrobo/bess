@@ -35,7 +35,7 @@ ports. Each port has `BESS_QUEUES` RX/TX queue pairs. The datapath is simple:
 ### create\_image.sh
 
 This script generates a vm.qcow2 image file that can be used with QEMU.
-The image is based on Ubuntu 14.04. You must create an image before launching
+The image is based on Ubuntu 24.04. You must create an image before launching
 VMs below.
 
 

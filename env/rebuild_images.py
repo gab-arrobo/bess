@@ -48,6 +48,7 @@ FULL_TARGET = TARGET_REGISTRY + TARGET_REPOSITORY + TARGET
 imgs = {
     'focal64': {'base': 'ubuntu:focal', 'tag_suffix': ''},
     'jammy64': {'base': 'ubuntu:jammy', 'tag_suffix': ''},
+    'noble64': {'base': 'ubuntu:noble', 'tag_suffix': ''},
 }
 
 

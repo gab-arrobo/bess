@@ -4,7 +4,7 @@
 # vim: syntax=dockerfile
 
 # Install CNDP dependencies and build CNDP.
-FROM ubuntu:22.04@sha256:104ae83764a5119017b8e8d6218fa0832b09df65aae7d5a6de29a85d813da2fb AS cndp-build
+FROM ubuntu:24.04@sha256:cd1dba651b3080c3686ecf4e3c4220f026b521fb76978881737d24f200828b2b AS cndp-build
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     golang \
     libelf-dev \
-    meson \
+    meson-1.5 \
     pkg-config \
     libbsd-dev \
     libjson-c-dev \
@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y \
     libnl-cli-3-dev \
     libnuma-dev \
     libpcap-dev \
+    libmosquitto-dev \
+    libsystemd-dev \
     wget \
     llvm-dev \
     libclang-dev \
@@ -32,14 +34,15 @@ RUN apt-get update && apt-get install -y \
     lld \
     m4 \
     linux-tools-common \
-    libbpf-dev && \
+    libbpf-dev \
+    ninja-build && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Install libxdp
 WORKDIR /xdp-tools
 RUN git clone https://github.com/xdp-project/xdp-tools.git . && \
-    git checkout v1.2.2 && \
+    git checkout v1.4.3 && \
     ./configure && \
     make -j; PREFIX=/usr make -j install
 ENV PKG_CONFIG_PATH=/usr/lib/pkgconfig
@@ -48,18 +51,16 @@ ENV PKG_CONFIG_PATH=/usr/lib/pkgconfig
 WORKDIR /
 RUN git clone https://github.com/CloudNativeDataPlane/cndp.git
 WORKDIR /cndp
-# Use version of CNDP tested with BESS
-RUN git checkout d5ce4b9edc2e7ddb46a61b395deffafaf11a0500
-# Build and install CNDP shared libraries
-RUN make && make install
-# Build and install CNDP static libraries
-RUN make static_build=1 rebuild install
+# Use latest CNDP version compatible with Ubuntu 24.04 and libbpf 1.x
+RUN git checkout main && \
+    make && make install && \
+    make static_build=1 rebuild install
 
 # Build the prometheus-metrics app
 WORKDIR /cndp/lang/go/stats/prometheus
 RUN go build prometheus.go
 
-FROM ubuntu:22.04@sha256:104ae83764a5119017b8e8d6218fa0832b09df65aae7d5a6de29a85d813da2fb
+FROM ubuntu:24.04@sha256:cd1dba651b3080c3686ecf4e3c4220f026b521fb76978881737d24f200828b2b
 
 # Install CNDP dependencies
 ENV DEBIAN_FRONTEND=noninteractive
@@ -75,6 +76,10 @@ RUN apt-get update && apt-get install -y \
     libnl-cli-3-dev \
     libnuma1 \
     libpcap0.8 \
+    libsystemd-dev \
+    libmosquitto-dev \
+    liblzma-dev \
+    libgrpc++-dev \
     pkg-config && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -86,8 +91,12 @@ COPY --from=cndp-build /cndp/usr/local/lib/x86_64-linux-gnu/*.a /usr/lib/
 COPY --from=cndp-build /cndp/usr/local/include/cndp/ /usr/local/include/cndp/
 COPY --from=cndp-build /cndp/usr/local/lib/pkgconfig/libcndp.pc /usr/lib/pkgconfig/
 COPY --from=cndp-build /cndp/lang/go/stats/prometheus/prometheus /usr/bin/
-COPY --from=cndp-build /usr/lib/libxdp* /usr/lib/
+COPY --from=cndp-build /usr/lib/libxdp* /usr/local/lib/
+COPY --from=cndp-build /usr/lib/pkgconfig/libxdp.pc /usr/lib/pkgconfig/
 COPY --from=cndp-build /usr/include/xdp/ /usr/include/xdp/
+
+# Update linker cache to ensure shared libraries can be found
+RUN ldconfig
 
 # Set CNDP PKG_CONFIG_PATH
 ENV PKG_CONFIG_PATH=/usr/lib64/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig
@@ -113,7 +122,7 @@ COPY . .
 
 # Build DPDK testpmd (used in bessctl samples)
 RUN ./build.py dpdk && \
-    cp /build/bess/deps/dpdk-22.11.4/build/app/dpdk-testpmd /usr/local/bin/ && \
+    cp /build/bess/deps/dpdk-24.11/build/app/dpdk-testpmd /usr/local/bin/ && \
     rm -rf /build/bess
 
 ENV CCACHE_DIR=/tmp/ccache
