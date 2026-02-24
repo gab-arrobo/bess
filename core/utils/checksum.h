@@ -209,9 +209,15 @@ static inline bool VerifyGenericChecksum(const void *buf, size_t len) {
   return VerifyGenericChecksum(buf, len, 0);
 }
 
+// Suppress warning for packed struct pointer casts; these are safe on x86
+// where unaligned access is supported and this inline assembly targets.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+
 // Returns true if the IP checksum is correct
 static inline bool VerifyIpv4NoOptChecksum(const Ipv4 &iph) {
-  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
+  const uint32_t *buf32 =
+      static_cast<const uint32_t *>(static_cast<const void *>(&iph));
   uint32_t sum = buf32[0];
 
   // Calculate internet checksum, the optimized way is
@@ -233,7 +239,8 @@ static inline bool VerifyIpv4NoOptChecksum(const Ipv4 &iph) {
 // It skips the checksum field into the calculation
 // It does not set the checksum field in ip header
 static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
-  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
+  const uint32_t *buf32 =
+      static_cast<const uint32_t *>(static_cast<const void *>(&iph));
   uint32_t sum = buf32[0];
 
   // Calculate internet checksum, the optimized way is
@@ -254,7 +261,8 @@ static inline uint16_t CalculateIpv4NoOptChecksum(const Ipv4 &iph) {
 
 // Returns true if the IP checksum is correct
 static inline bool VerifyIpv4Checksum(const Ipv4 &iph) {
-  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
+  const uint32_t *buf32 =
+      static_cast<const uint32_t *>(static_cast<const void *>(&iph));
   size_t ip_header_len = iph.header_length << 2;
 
   if (unlikely(ip_header_len < sizeof(iph))) {
@@ -284,7 +292,8 @@ static inline bool VerifyIpv4Checksum(const Ipv4 &iph) {
 // It skips the checksum field into the calculation
 // It does not set the checksum field in ip header
 static inline uint16_t CalculateIpv4Checksum(const Ipv4 &iph) {
-  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&iph);
+  const uint32_t *buf32 =
+      static_cast<const uint32_t *>(static_cast<const void *>(&iph));
   size_t ip_header_len = iph.header_length << 2;
 
   if (unlikely(ip_header_len < sizeof(iph))) {
@@ -317,7 +326,8 @@ static inline uint16_t CalculateIpv4Checksum(const Ipv4 &iph) {
 // NOTE: Undefined behavior if udp_len < 8
 static inline bool VerifyIpv4UdpChecksum(const Udp &udph, be32_t src_ip,
                                          be32_t dst_ip, uint16_t udp_len) {
-  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&udph);
+  const uint32_t *buf32 =
+      static_cast<const uint32_t *>(static_cast<const void *>(&udph));
 
   // UDP checksum is optional, and all zeroes mean "not computed"
   if (udph.checksum == 0) {
@@ -364,7 +374,8 @@ static inline bool VerifyIpv4UdpChecksum(const Ipv4 &iph, const Udp &udph) {
 // NOTE: Undefined behavior if udp_len < 8
 static inline uint16_t CalculateIpv4UdpChecksum(const Udp &udph, be32_t src,
                                                 be32_t dst, uint16_t udp_len) {
-  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&udph);
+  const uint32_t *buf32 =
+      static_cast<const uint32_t *>(static_cast<const void *>(&udph));
   // UDP payload
   uint32_t sum = CalculateSum(buf32 + sizeof(udph) / sizeof(*buf32),
                               udp_len - sizeof(udph));
@@ -406,7 +417,8 @@ static inline uint16_t CalculateIpv4UdpChecksum(const Ipv4 &iph,
 // NOTE: Undefined behavior if tcp_len < 20
 static inline bool VerifyIpv4TcpChecksum(const Tcp &tcph, be32_t src_ip,
                                          be32_t dst_ip, uint16_t tcp_len) {
-  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
+  const uint32_t *buf32 =
+      static_cast<const uint32_t *>(static_cast<const void *>(&tcph));
 
   // TCP options and payload
   uint32_t sum = CalculateSum(buf32 + sizeof(tcph) / sizeof(*buf32),
@@ -454,7 +466,8 @@ static inline bool VerifyIpv4TcpChecksum(const Ipv4 &iph, const Tcp &tcph) {
 // NOTE: Undefined behavior if tcp_len < 20
 static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
                                                 be32_t dst, uint16_t tcp_len) {
-  const uint32_t *buf32 = reinterpret_cast<const uint32_t *>(&tcph);
+  const uint32_t *buf32 =
+      static_cast<const uint32_t *>(static_cast<const void *>(&tcph));
   // tcp options and payload
   uint32_t sum = CalculateSum(buf32 + sizeof(tcph) / sizeof(*buf32),
                               tcp_len - sizeof(tcph));
@@ -479,6 +492,8 @@ static inline uint16_t CalculateIpv4TcpChecksum(const Tcp &tcph, be32_t src,
 
   return FoldChecksum(sum);
 }
+
+#pragma GCC diagnostic pop
 
 // Returns TCP (on IPv4) checksum of the tcp header 'tcph' with ip header 'iph'
 // It skips the checksum field into the calculation
