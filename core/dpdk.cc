@@ -123,8 +123,6 @@ void init_eal(int dpdk_mb_per_socket, std::string nonworker_corelist) {
       // Do not bother with /var/run/.rte_config and .rte_hugepage_info,
       // since we don't want to interfere with other DPDK applications.
       "--no-shconf",
-      // TODO(sangjin) switch to dynamic memory mode
-      "--legacy-mem",
   };
 
   if (FLAGS_iova != "")

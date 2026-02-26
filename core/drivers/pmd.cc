@@ -32,14 +32,18 @@
 
 #include "pmd.h"
 
+#include <net/if.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
 #include <vector>
 
-#include <bus_driver.h>
-#include <bus_pci_driver.h>
 #include <rte_bus.h>
 #include <rte_bus_pci.h>
+#include <rte_dev.h>
 #include <rte_ethdev.h>
 #include <rte_flow.h>
+#include <rte_pci.h>
 
 #include "../utils/ether.h"
 #include "../utils/format.h"
@@ -65,6 +69,7 @@ static const rte_eth_conf default_eth_conf(const rte_eth_dev_info &dev_info,
       .rss_hf = (RTE_ETH_RSS_IP | RTE_ETH_RSS_UDP | RTE_ETH_RSS_TCP |
                  RTE_ETH_RSS_SCTP) &
                 dev_info.flow_type_rss_offloads,
+      .algorithm = RTE_ETH_HASH_FUNCTION_DEFAULT,
   };
 
   return ret;
@@ -87,13 +92,11 @@ void PMDPort::InitDriver() {
 
     std::string pci_info;
     if (dev_info.device) {
-      rte_bus *bus = rte_bus_find_by_device(dev_info.device);
-      if (bus && !strcmp(bus->name, "pci")) {
-        rte_pci_device *pci_dev = RTE_DEV_TO_PCI(dev_info.device);
-        pci_info = bess::utils::Format(
-            "%08x:%02hhx:%02hhx.%02hhx %04hx:%04hx  ", pci_dev->addr.domain,
-            pci_dev->addr.bus, pci_dev->addr.devid, pci_dev->addr.function,
-            pci_dev->id.vendor_id, pci_dev->id.device_id);
+      const rte_bus *bus = rte_bus_find_by_device(dev_info.device);
+      if (bus && !strcmp(rte_bus_name(bus), "pci")) {
+        const char *bus_info = rte_dev_bus_info(dev_info.device);
+        if (bus_info)
+          pci_info = std::string(bus_info) + "  ";
       }
     }
 
@@ -156,9 +159,11 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
 
     if (dev_info.device) {
       bus = rte_bus_find_by_device(dev_info.device);
-      if (bus && !strcmp(bus->name, "pci")) {
-        const rte_pci_device *pci_dev = RTE_DEV_TO_PCI(dev_info.device);
-        if (rte_pci_addr_cmp(&addr, &pci_dev->addr) == 0) {
+      if (bus && !strcmp(rte_bus_name(bus), "pci")) {
+        rte_pci_addr dev_addr;
+        if (rte_pci_addr_parse(rte_dev_name(dev_info.device),
+                              &dev_addr) == 0 &&
+            rte_pci_addr_cmp(&addr, &dev_addr) == 0) {
           port_id = i;
           break;
         }
@@ -475,6 +480,42 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
     }
   }
 
+  // Workaround for af_packet PMD: DPDK's rte_eth_dev_start() internally
+  // calls rte_eth_dev_config_restore() which re-applies promiscuous mode
+  // via ioctl(SIOCSIFFLAGS).  If the flags are already set, the redundant
+  // ioctl can fail with EPERM in restricted environments (containers
+  // without CAP_NET_ADMIN, etc.).  Pre-sync the interface flags here so
+  // that DPDK's set-flags call becomes a harmless no-op.
+  const char *driver_name = dev_info.driver_name ?: "";
+  if (strcmp(driver_name, "net_af_packet") == 0 &&
+      arg.port_case() == bess::pb::PMDPortArg::kVdev) {
+    const std::string &vdev = arg.vdev();
+    // Extract kernel interface name from vdev string "net_af_packet0,iface=eth0,..."
+    auto pos = vdev.find("iface=");
+    if (pos != std::string::npos) {
+      std::string kif_name = vdev.substr(pos + 6);
+      auto comma = kif_name.find(',');
+      if (comma != std::string::npos)
+        kif_name.resize(comma);
+
+      struct ifreq ifr = {};
+      int sock = socket(PF_INET, SOCK_DGRAM, 0);
+      if (sock >= 0) {
+        strlcpy(ifr.ifr_name, kif_name.c_str(), IFNAMSIZ);
+        if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
+          uint32_t desired = ifr.ifr_flags | IFF_UP;
+          if (arg.promiscuous_mode())
+            desired |= IFF_PROMISC;
+          if (static_cast<uint32_t>(ifr.ifr_flags) != desired) {
+            ifr.ifr_flags = desired;
+            ioctl(sock, SIOCSIFFLAGS, &ifr);  // best-effort
+          }
+        }
+        close(sock);
+      }
+    }
+  }
+
   ret = rte_eth_dev_start(ret_port_id);
   if (ret != 0) {
     return CommandFailure(-ret, "rte_eth_dev_start() failed");
@@ -564,10 +605,10 @@ void PMDPort::DeInit() {
     int ret;
 
     if (dev_info.device) {
-      rte_bus *bus = rte_bus_find_by_device(dev_info.device);
+      const rte_bus *bus = rte_bus_find_by_device(dev_info.device);
       if (rte_eth_dev_get_name_by_port(dpdk_port_id_, name) == 0) {
         rte_eth_dev_close(dpdk_port_id_);
-        ret = rte_eal_hotplug_remove(bus->name, name);
+        ret = rte_eal_hotplug_remove(rte_bus_name(bus), name);
         if (ret < 0) {
           LOG(WARNING) << "rte_eal_hotplug_remove("
                        << static_cast<int>(dpdk_port_id_)
