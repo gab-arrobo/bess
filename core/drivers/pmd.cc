@@ -161,8 +161,7 @@ static CommandResponse find_dpdk_port_by_pci_addr(const std::string &pci,
       bus = rte_bus_find_by_device(dev_info.device);
       if (bus && !strcmp(rte_bus_name(bus), "pci")) {
         rte_pci_addr dev_addr;
-        if (rte_pci_addr_parse(rte_dev_name(dev_info.device),
-                              &dev_addr) == 0 &&
+        if (rte_pci_addr_parse(rte_dev_name(dev_info.device), &dev_addr) == 0 &&
             rte_pci_addr_cmp(&addr, &dev_addr) == 0) {
           port_id = i;
           break;
@@ -490,7 +489,8 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
   if (strcmp(driver_name, "net_af_packet") == 0 &&
       arg.port_case() == bess::pb::PMDPortArg::kVdev) {
     const std::string &vdev = arg.vdev();
-    // Extract kernel interface name from vdev string "net_af_packet0,iface=eth0,..."
+    // Extract kernel interface name from vdev string
+    // "net_af_packet0,iface=eth0,..."
     auto pos = vdev.find("iface=");
     if (pos != std::string::npos) {
       std::string kif_name = vdev.substr(pos + 6);
