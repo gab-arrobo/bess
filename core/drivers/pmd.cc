@@ -512,8 +512,8 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
             if (static_cast<uint32_t>(ifr.ifr_flags) != desired) {
               ifr.ifr_flags = desired;
               if (ioctl(sock, SIOCSIFFLAGS, &ifr) != 0) {
-                LOG(WARNING) << "af_packet: failed to set flags on "
-                             << kif_name << ": " << strerror(errno);
+                LOG(WARNING) << "af_packet: failed to set flags on " << kif_name
+                             << ": " << strerror(errno);
               }
             }
           }
