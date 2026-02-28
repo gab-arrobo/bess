@@ -44,6 +44,7 @@
 #include <rte_ethdev.h>
 #include <rte_flow.h>
 #include <rte_pci.h>
+#include <rte_string_fns.h>
 
 #include "../utils/ether.h"
 #include "../utils/format.h"
@@ -498,20 +499,26 @@ CommandResponse PMDPort::Init(const bess::pb::PMDPortArg &arg) {
       if (comma != std::string::npos)
         kif_name.resize(comma);
 
-      struct ifreq ifr = {};
-      int sock = socket(PF_INET, SOCK_DGRAM, 0);
-      if (sock >= 0) {
-        strlcpy(ifr.ifr_name, kif_name.c_str(), IFNAMSIZ);
-        if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
-          uint32_t desired = ifr.ifr_flags | IFF_UP;
-          if (arg.promiscuous_mode())
-            desired |= IFF_PROMISC;
-          if (static_cast<uint32_t>(ifr.ifr_flags) != desired) {
-            ifr.ifr_flags = desired;
-            ioctl(sock, SIOCSIFFLAGS, &ifr);  // best-effort
+      // Ensure interface name fits into ifr.ifr_name (IFNAMSIZ) before copying.
+      if (kif_name.length() < IFNAMSIZ) {
+        struct ifreq ifr = {};
+        int sock = socket(PF_INET, SOCK_DGRAM, 0);
+        if (sock >= 0) {
+          rte_strlcpy(ifr.ifr_name, kif_name.c_str(), IFNAMSIZ);
+          if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
+            uint32_t desired = ifr.ifr_flags | IFF_UP;
+            if (arg.promiscuous_mode())
+              desired |= IFF_PROMISC;
+            if (static_cast<uint32_t>(ifr.ifr_flags) != desired) {
+              ifr.ifr_flags = desired;
+              if (ioctl(sock, SIOCSIFFLAGS, &ifr) != 0) {
+                LOG(WARNING) << "af_packet: failed to set flags on "
+                             << kif_name << ": " << strerror(errno);
+              }
+            }
           }
+          close(sock);
         }
-        close(sock);
       }
     }
   }
@@ -606,7 +613,7 @@ void PMDPort::DeInit() {
 
     if (dev_info.device) {
       const rte_bus *bus = rte_bus_find_by_device(dev_info.device);
-      if (rte_eth_dev_get_name_by_port(dpdk_port_id_, name) == 0) {
+      if (bus && rte_eth_dev_get_name_by_port(dpdk_port_id_, name) == 0) {
         rte_eth_dev_close(dpdk_port_id_);
         ret = rte_eal_hotplug_remove(rte_bus_name(bus), name);
         if (ret < 0) {
